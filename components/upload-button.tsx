@@ -47,11 +47,11 @@ export const UploadButton = () => {
     }
 
     // Check file sizes
-    const maxSize = 4.5 * 1024 * 1024; // 4.5MB
+    const maxSize = 15 * 1024 * 1024; // 15MB
     const oversizedFiles = files.filter((file) => file.size > maxSize);
     if (oversizedFiles.length > 0) {
       toast.error(
-        `${oversizedFiles.length} file${oversizedFiles.length > 1 ? "s" : ""} exceed the 4.5MB limit`,
+        `${oversizedFiles.length} file${oversizedFiles.length > 1 ? "s" : ""} exceed the 15MB limit`,
         {
           description: "Please use smaller files for server uploads",
         }

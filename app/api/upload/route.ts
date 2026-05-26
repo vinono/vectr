@@ -41,11 +41,11 @@ export const POST = async (request: Request): Promise<NextResponse> => {
       );
     }
 
-    // Validate file size (4.5MB limit for server uploads)
-    const maxSize = 4.5 * 1024 * 1024; // 4.5MB
+    // Validate file size (15MB limit for server uploads)
+    const maxSize = 15 * 1024 * 1024; // 15MB
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: "File size exceeds 4.5MB limit for server uploads" },
+        { error: "File size exceeds 15MB limit for server uploads" },
         { status: 400 }
       );
     }
