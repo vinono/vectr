@@ -5,9 +5,6 @@
 import { Search } from "@upstash/search";
 import type { PutBlobResult } from "@vercel/blob";
 
-const upstash = Search.fromEnv();
-const index = upstash.index("images");
-
 type SearchResponse =
   | {
       data: PutBlobResult[];
@@ -28,6 +25,8 @@ export const search = async (
 
   try {
     console.log("Searching index for query:", query);
+    const upstash = Search.fromEnv();
+    const index = upstash.index("images");
     const results = await index.search({ query });
 
     console.log("Results:", results);

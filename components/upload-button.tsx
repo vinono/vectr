@@ -4,6 +4,7 @@ import { ImageUpIcon, XIcon } from "lucide-react";
 import { type ChangeEventHandler, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { useUploadedImages } from "@/components/uploaded-images-provider";
 
@@ -12,6 +13,7 @@ export const UploadButton = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [adminPassword, setAdminPassword] = useState("");
   const isDemo =
     typeof window !== "undefined" &&
     window.location.hostname.includes("vectr.store");
@@ -33,6 +35,14 @@ export const UploadButton = () => {
 
     if (isDemo) {
       toast.error("Uploads are disabled in demo mode");
+      return;
+    }
+
+    if (!adminPassword) {
+      toast.error("Please enter the upload password");
+      if (inputRef.current) {
+        inputRef.current.value = "";
+      }
       return;
     }
 
@@ -116,6 +126,7 @@ export const UploadButton = () => {
         // Create FormData and upload to server
         const formData = new FormData();
         formData.append("file", file);
+        formData.append("adminPassword", adminPassword);
 
         const response = await fetch("/api/upload", {
           method: "POST",
@@ -247,6 +258,15 @@ export const UploadButton = () => {
       >
         <ImageUpIcon className="size-4" />
       </Button>
+      <Input
+        aria-label="Upload password"
+        className="w-28 shrink-0 rounded-full border-none bg-secondary shadow-none outline-none sm:w-36"
+        disabled={isUploading || isDemo}
+        onChange={(event) => setAdminPassword(event.target.value)}
+        placeholder="Upload password"
+        type="password"
+        value={adminPassword}
+      />
     </>
   );
 };

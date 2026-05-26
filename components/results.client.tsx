@@ -1,6 +1,6 @@
 "use client";
 
-import type { ListBlobResult } from "@vercel/blob";
+import type { ListBlobResult, PutBlobResult } from "@vercel/blob";
 import {
   ArrowLeftIcon,
   FileIcon,
@@ -21,6 +21,10 @@ import { useUploadedImages } from "./uploaded-images-provider";
 
 type ResultsClientProps = {
   defaultData: ListBlobResult["blobs"];
+};
+
+type SearchBlob = PutBlobResult & {
+  description?: string;
 };
 
 const PRIORITY_COUNT = 12;
@@ -56,9 +60,10 @@ export const ResultsClient = ({ defaultData }: ResultsClientProps) => {
             />
           ))}
           {"data" in state && state.data?.length
-            ? state.data.map((blob, index) => (
+            ? (state.data as SearchBlob[]).map((blob, index) => (
                 <Preview
                   key={blob.url}
+                  description={blob.description}
                   priority={index < PRIORITY_COUNT}
                   url={blob.url}
                 />

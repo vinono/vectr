@@ -4,8 +4,6 @@ import { Search } from "@upstash/search";
 import type { PutBlobResult } from "@vercel/blob";
 import { FatalError, getStepMetadata, RetryableError } from "workflow";
 
-const upstash = Search.fromEnv();
-
 export const indexImage = async (blob: PutBlobResult, text: string) => {
   "use step";
 
@@ -17,13 +15,14 @@ export const indexImage = async (blob: PutBlobResult, text: string) => {
   );
 
   try {
+    const upstash = Search.fromEnv();
     const index = upstash.index("images");
 
     // Store blob metadata in Upstash along with the description
     const result = await index.upsert({
       id: blob.pathname,
       content: { text },
-      metadata: { ...blob },
+      metadata: { ...blob, description: text },
     });
 
     console.log(

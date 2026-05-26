@@ -7,6 +7,24 @@ export const POST = async (request: Request): Promise<NextResponse> => {
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
+    const adminPassword = formData.get("adminPassword");
+
+    if (!process.env.ADMIN_PASSWORD) {
+      return NextResponse.json(
+        { error: "Upload password is not configured" },
+        { status: 500 }
+      );
+    }
+
+    if (
+      typeof adminPassword !== "string" ||
+      adminPassword !== process.env.ADMIN_PASSWORD
+    ) {
+      return NextResponse.json(
+        { error: "Invalid upload password" },
+        { status: 401 }
+      );
+    }
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
