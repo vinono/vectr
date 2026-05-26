@@ -1,6 +1,7 @@
 "use client";
 
 import type { PutBlobResult } from "@vercel/blob";
+import type { ExifData } from "@/lib/exif";
 import {
   createContext,
   type ReactNode,
@@ -11,8 +12,12 @@ import {
 } from "react";
 
 type UploadedImagesContextValue = {
-  images: PutBlobResult[];
-  addImage: (image: PutBlobResult) => void;
+  images: UploadedImage[];
+  addImage: (image: UploadedImage) => void;
+};
+
+export type UploadedImage = PutBlobResult & {
+  exif?: ExifData;
 };
 
 const UploadedImagesContext = createContext<
@@ -36,10 +41,10 @@ type UploadedImagesProviderProps = {
 export const UploadedImagesProvider = ({
   children,
 }: UploadedImagesProviderProps) => {
-  const [images, setImages] = useState<PutBlobResult[]>([]);
+  const [images, setImages] = useState<UploadedImage[]>([]);
 
   const addImage = useCallback(
-    (image: PutBlobResult) => setImages((prev) => [image, ...prev]),
+    (image: UploadedImage) => setImages((prev) => [image, ...prev]),
     []
   );
 

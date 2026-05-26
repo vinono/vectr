@@ -3,8 +3,13 @@
 import { Search } from "@upstash/search";
 import type { PutBlobResult } from "@vercel/blob";
 import { FatalError, getStepMetadata, RetryableError } from "workflow";
+import type { ExifData } from "@/lib/exif";
 
-export const indexImage = async (blob: PutBlobResult, text: string) => {
+export const indexImage = async (
+  blob: PutBlobResult,
+  text: string,
+  exif?: ExifData
+) => {
   "use step";
 
   const { attempt, stepStartedAt, stepId } = getStepMetadata();
@@ -22,7 +27,7 @@ export const indexImage = async (blob: PutBlobResult, text: string) => {
     const result = await index.upsert({
       id: blob.pathname,
       content: { text },
-      metadata: { ...blob, description: text },
+      metadata: { ...blob, description: text, exif },
     });
 
     console.log(

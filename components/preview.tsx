@@ -1,48 +1,36 @@
 import Image from "next/image";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 
 type PreviewProps = {
   url: string;
   description?: string;
   priority?: boolean;
+  onClick?: () => void;
 };
 
-export const Preview = ({ url, description, priority }: PreviewProps) => (
-  <Dialog>
-    <DialogTrigger asChild>
-      <button
-        className="mb-4 block w-full cursor-zoom-in rounded-xl bg-card p-2 shadow-xl"
-        type="button"
-      >
-        <Image
-          alt={description || url}
-          className="rounded-md"
-          height={630}
-          priority={priority}
-          sizes="630px"
-          src={url}
-          width={630}
-        />
-      </button>
-    </DialogTrigger>
-    <DialogContent className="max-w-4xl border-none bg-black/90 p-4">
-      <DialogTitle className="sr-only">Image preview</DialogTitle>
-      <div className="flex flex-col items-center">
-        <img
-          alt={description || url}
-          className="max-h-[80vh] max-w-full object-contain"
-          src={url}
-        />
-        <DialogDescription className="mt-4 text-center text-sm text-white">
-          {description || url}
-        </DialogDescription>
-      </div>
-    </DialogContent>
-  </Dialog>
-);
+export const Preview = ({
+  url,
+  description,
+  priority,
+  onClick,
+}: PreviewProps) => {
+  const caption = description || "No description available yet.";
+
+  return (
+    <button
+      className="group hover:-translate-y-0.5 mb-4 block w-full cursor-zoom-in overflow-hidden rounded-2xl border bg-card p-1.5 shadow-sm transition-all duration-300 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      onClick={onClick}
+      type="button"
+    >
+      <Image
+        alt={caption}
+        className="h-auto w-full rounded-xl object-cover transition duration-300 group-hover:scale-[1.02]"
+        height={630}
+        priority={priority}
+        sizes="(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw"
+        src={url}
+        unoptimized
+        width={630}
+      />
+    </button>
+  );
+};

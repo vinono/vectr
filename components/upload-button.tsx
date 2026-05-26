@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { useUploadedImages } from "@/components/uploaded-images-provider";
+import { readExif } from "@/lib/exif";
 
 export const UploadButton = () => {
   const { addImage } = useUploadedImages();
@@ -65,9 +66,11 @@ export const UploadButton = () => {
     setIsUploading(true);
 
     // Create temporary blobs for all files immediately for optimistic UI
-    const tempBlobs = files.map((file) => {
+    const tempBlobs = await Promise.all(files.map(async (file) => {
       const tempUrl = URL.createObjectURL(file);
+      const exif = await readExif(file);
       return {
+        exif,
         file,
         tempUrl,
         blob: {
@@ -76,9 +79,10 @@ export const UploadButton = () => {
           pathname: file.name,
           contentType: file.type,
           contentDisposition: `attachment; filename="${file.name}"`,
+          exif,
         },
       };
-    });
+    }));
 
     // Add all temp blobs to state immediately
     for (const { blob } of tempBlobs) {
@@ -117,9 +121,11 @@ export const UploadButton = () => {
     // Helper function to process a single file
     const processFile = async ({
       file,
+      exif,
       tempUrl,
     }: {
       file: File;
+      exif?: Awaited<ReturnType<typeof readExif>>;
       tempUrl: string;
     }) => {
       try {
@@ -127,6 +133,9 @@ export const UploadButton = () => {
         const formData = new FormData();
         formData.append("file", file);
         formData.append("adminPassword", adminPassword);
+        if (exif) {
+          formData.append("exif", JSON.stringify(exif));
+        }
 
         const response = await fetch("/api/upload", {
           method: "POST",

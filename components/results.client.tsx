@@ -9,14 +9,16 @@ import {
   Loader2Icon,
   UploadIcon,
 } from "lucide-react";
-import { useActionState, useEffect } from "react";
+import Link from "next/link";
+import { useActionState, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { search } from "@/app/actions/search";
+import type { ExifData } from "@/lib/exif";
 import { Preview } from "./preview";
+import { type PreviewImageItem, PreviewModal } from "./preview-modal";
 import { Button } from "./ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "./ui/empty";
 import { Input } from "./ui/input";
-import { UploadButton } from "./upload-button";
 import { useUploadedImages } from "./uploaded-images-provider";
 
 type ResultsClientProps = {
@@ -25,6 +27,7 @@ type ResultsClientProps = {
 
 type SearchBlob = PutBlobResult & {
   description?: string;
+  exif?: ExifData;
 };
 
 const PRIORITY_COUNT = 12;
@@ -32,6 +35,7 @@ const PRIORITY_COUNT = 12;
 export const ResultsClient = ({ defaultData }: ResultsClientProps) => {
   const { images } = useUploadedImages();
   const [state, formAction, isPending] = useActionState(search, { data: [] });
+  const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if ("error" in state) {
@@ -48,13 +52,39 @@ export const ResultsClient = ({ defaultData }: ResultsClientProps) => {
     defaultData.length ||
     ("data" in state && state.data?.length);
 
+  // Normalize all current images for global navigation inside the PreviewModal
+  const searchOrDefaultImages =
+    "data" in state && state.data?.length
+      ? (state.data as SearchBlob[])
+      : defaultData;
+
+  const allImages: PreviewImageItem[] = [
+    ...images.map((image) => ({
+      url: image.url,
+      description: image.pathname,
+      exif: image.exif,
+    })),
+    ...searchOrDefaultImages.map((blob) => {
+      const isSearch = "description" in blob;
+      return {
+        url: isSearch ? blob.url : blob.downloadUrl,
+        description: isSearch
+          ? blob.description
+          : blob.pathname || blob.downloadUrl,
+        exif: (blob as unknown as SearchBlob).exif,
+      };
+    }),
+  ];
+
   return (
     <>
       {hasImages ? (
         <div className="gap-4 sm:columns-2 md:columns-3 lg:columns-2 xl:columns-3">
           {images.map((image, index) => (
             <Preview
+              description={image.pathname}
               key={image.url}
+              onClick={() => setActiveImageIndex(index)}
               priority={index < PRIORITY_COUNT}
               url={image.url}
             />
@@ -62,8 +92,9 @@ export const ResultsClient = ({ defaultData }: ResultsClientProps) => {
           {"data" in state && state.data?.length
             ? (state.data as SearchBlob[]).map((blob, index) => (
                 <Preview
-                  key={blob.url}
                   description={blob.description}
+                  key={blob.url}
+                  onClick={() => setActiveImageIndex(images.length + index)}
                   priority={index < PRIORITY_COUNT}
                   url={blob.url}
                 />
@@ -71,6 +102,7 @@ export const ResultsClient = ({ defaultData }: ResultsClientProps) => {
             : defaultData.map((blob, index) => (
                 <Preview
                   key={blob.url}
+                  onClick={() => setActiveImageIndex(images.length + index)}
                   priority={index < PRIORITY_COUNT}
                   url={blob.downloadUrl}
                 />
@@ -99,6 +131,14 @@ export const ResultsClient = ({ defaultData }: ResultsClientProps) => {
           </EmptyHeader>
         </Empty>
       )}
+
+      {/* Global Preview Modal with Carousel Navigation */}
+      <PreviewModal
+        activeIndex={activeImageIndex}
+        images={allImages}
+        onChangeIndex={(index) => setActiveImageIndex(index)}
+        onClose={() => setActiveImageIndex(null)}
+      />
 
       <form
         action={formAction}
@@ -129,7 +169,16 @@ export const ResultsClient = ({ defaultData }: ResultsClientProps) => {
             <Loader2Icon className="size-4 animate-spin" />
           </Button>
         ) : (
-          <UploadButton />
+          <Button
+            asChild
+            className="shrink-0 cursor-pointer rounded-full hover:bg-muted"
+            size="icon"
+            variant="ghost"
+          >
+            <Link aria-label="Upload page" href="/upload">
+              <ImageUpIcon className="size-4" />
+            </Link>
+          </Button>
         )}
       </form>
     </>

@@ -1,12 +1,14 @@
 /** biome-ignore-all lint/suspicious/noConsole: "Handy for debugging" */
 
 import { FatalError } from "workflow";
+import type { ExifData } from "@/lib/exif";
 import { generateDescription } from "./generate-description";
 import { indexImage } from "./index-image";
 import { uploadImage } from "./upload-image";
 
 type SerializableFile = {
   buffer: ArrayBuffer;
+  exif?: ExifData;
   name: string;
   type: string;
   size: number;
@@ -43,7 +45,7 @@ export const processImage = async (fileData: SerializableFile) => {
 
     // Step 3: Index in search with metadata
     console.log("[WORKFLOW] Step 3/3: Indexing in search");
-    await indexImage(blob, text);
+    await indexImage(blob, text, fileData.exif);
     console.log("[WORKFLOW] Step 3/3 complete. Image indexed successfully");
 
     const workflowDuration = Date.now() - workflowStartTime;

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { FatalError } from "workflow";
 import { start } from "workflow/api";
+import type { ExifData } from "@/lib/exif";
 import { processImage } from "./process-image";
 
 export const POST = async (request: Request): Promise<NextResponse> => {
@@ -8,6 +9,7 @@ export const POST = async (request: Request): Promise<NextResponse> => {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const adminPassword = formData.get("adminPassword");
+    const exifValue = formData.get("exif");
 
     if (!process.env.ADMIN_PASSWORD) {
       return NextResponse.json(
@@ -52,8 +54,13 @@ export const POST = async (request: Request): Promise<NextResponse> => {
 
     // Convert File to serializable format for the workflow
     const arrayBuffer = await file.arrayBuffer();
+    const exif =
+      typeof exifValue === "string"
+        ? (JSON.parse(exifValue) as ExifData)
+        : undefined;
     const fileData = {
       buffer: arrayBuffer,
+      exif,
       name: file.name,
       type: file.type,
       size: file.size,
