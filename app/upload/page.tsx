@@ -32,6 +32,90 @@ const MAX_FILE_SIZE_BYTES = 15_728_640; // 15MB
 const BYTES_IN_MB = 1_048_576; // 1024 * 1024
 const BATCH_UPLOAD_SIZE = 5;
 
+const calculateDimensions = (
+  width: number,
+  height: number,
+  maxWidth: number
+) => {
+  if (width <= maxWidth && height <= maxWidth) {
+    return { width, height };
+  }
+  if (width > height) {
+    return {
+      width: maxWidth,
+      height: Math.round((height * maxWidth) / width),
+    };
+  }
+  return {
+    width: Math.round((width * maxWidth) / height),
+    height: maxWidth,
+  };
+};
+
+/**
+ * Client-side high-quality Canvas image compression
+ */
+const compressImage = (
+  file: File,
+  maxWidth = 2048,
+  quality = 0.8
+): Promise<File> => {
+  return new Promise((resolve) => {
+    // Only compress standard images (JPEG, PNG, WebP)
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      resolve(file);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const { width, height } = calculateDimensions(
+          img.width,
+          img.height,
+          maxWidth
+        );
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(file);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Standardize output format
+        const outputType =
+          file.type === "image/webp" ? "image/webp" : "image/jpeg";
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(file);
+              return;
+            }
+            const compressedFile = new File([blob], file.name, {
+              type: outputType,
+              lastModified: Date.now(),
+            });
+            resolve(compressedFile);
+          },
+          outputType,
+          quality
+        );
+      };
+      img.onerror = () => resolve(file);
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+};
+
 export default function UploadPage() {
   const { addImage } = useUploadedImages();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -189,18 +273,25 @@ export default function UploadPage() {
       try {
         const exif = await readExif(uploadFile.file);
 
+        // Perform extreme high-quality client-side compression to avoid Vercel timeouts/bloated storage
+        const compressedFile = await compressImage(uploadFile.file);
+        // biome-ignore lint/suspicious/noConsole: Log optimized file size metrics for user diagnostics
+        console.log(
+          `[COMPRESSION] Optimized image ${uploadFile.file.name}: ${(uploadFile.file.size / BYTES_IN_MB).toFixed(2)}MB -> ${(compressedFile.size / BYTES_IN_MB).toFixed(2)}MB`
+        );
+
         // Optimistic addition to global state (similar to upload-button.tsx)
         const tempBlob = {
           url: uploadFile.thumbnailUrl,
           downloadUrl: uploadFile.thumbnailUrl,
           pathname: uploadFile.file.name,
-          contentType: uploadFile.file.type,
-          contentDisposition: `attachment; filename="${uploadFile.file.name}"`,
+          contentType: compressedFile.type,
+          contentDisposition: `attachment; filename="${compressedFile.name}"`,
           exif,
         };
 
         const formData = new FormData();
-        formData.append("file", uploadFile.file);
+        formData.append("file", compressedFile);
         formData.append("adminPassword", adminPassword);
         if (exif) {
           formData.append("exif", JSON.stringify(exif));

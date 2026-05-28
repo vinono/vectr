@@ -3,6 +3,8 @@ import { Suspense } from "react";
 import { Header } from "@/components/header";
 import { Results } from "@/components/results";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "vectr",
   description: "vectr",

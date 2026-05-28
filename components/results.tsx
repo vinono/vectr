@@ -1,26 +1,41 @@
-import { Search } from "@upstash/search";
+import { Index } from "@upstash/vector";
 import type { ListBlobResult } from "@vercel/blob";
 import { ResultsClient } from "./results.client";
 
 export const Results = async () => {
   if (
     !(
-      process.env.UPSTASH_SEARCH_REST_URL &&
-      process.env.UPSTASH_SEARCH_REST_TOKEN
+      (process.env.UPSTASH_SEARCH_REST_URL ||
+        process.env.UPSTASH_VECTOR_REST_URL) &&
+      (process.env.UPSTASH_SEARCH_REST_TOKEN ||
+        process.env.UPSTASH_VECTOR_REST_TOKEN)
     )
   ) {
     return <ResultsClient defaultData={[]} />;
   }
 
   try {
-    const upstash = Search.fromEnv();
-    const index = upstash.index("images");
+    const index = new Index({
+      url:
+        process.env.UPSTASH_SEARCH_REST_URL ||
+        process.env.UPSTASH_VECTOR_REST_URL ||
+        "",
+      token:
+        process.env.UPSTASH_SEARCH_REST_TOKEN ||
+        process.env.UPSTASH_VECTOR_REST_TOKEN ||
+        "",
+    });
 
     // Fetch up to 50 documents directly from the search index to get complete metadata (including EXIF and description)
-    const { documents } = await index.range({ cursor: "0", limit: 50 });
+    const { vectors } = await index.range({
+      cursor: "0",
+      limit: 50,
+      includeMetadata: true,
+      includeData: true,
+    });
 
     // Map each document to match results structure, preserving description and exif
-    const defaultData = documents
+    const defaultData = vectors
       .map((doc) => doc.metadata)
       .filter(Boolean) as unknown as ListBlobResult["blobs"];
 

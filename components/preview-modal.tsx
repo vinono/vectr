@@ -11,20 +11,19 @@ import {
   FocusIcon,
   SlidersIcon,
   TimerIcon,
+  Trash2Icon,
   XIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { deleteImage } from "@/app/actions/delete";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import type { ExifData } from "@/lib/exif";
 import { cn } from "@/lib/utils";
 
 export type PreviewImageItem = {
   url: string;
+  pathname: string;
   description?: string;
   exif?: ExifData;
 };
@@ -41,7 +40,6 @@ type ExifItemType = {
   value: string;
 };
 
-const FILENAME_REGEX = /\.(jpe?g|png|webp|gif|tiff?|heic)$/i;
 const CAROUSEL_TRANSITION_MS = 150;
 const MODAL_CLOSE_MS = 200;
 
@@ -82,15 +80,12 @@ export const PreviewModal = ({
   const isOpen = activeIndex !== null;
   const activeImage = activeIndex !== null ? images[activeIndex] : null;
 
-  const [_orientation, setOrientation] = useState<
-    "landscape" | "portrait" | null
-  >(null);
-
   // Smooth slide/fade transition states
   const [displayedImage, setDisplayedImage] = useState<PreviewImageItem | null>(
     null
   );
   const [fadeClass, setFadeClass] = useState("opacity-100 scale-100 blur-0");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const thumbnailContainerRef = useRef<HTMLDivElement>(null);
 
@@ -98,7 +93,7 @@ export const PreviewModal = ({
   useEffect(() => {
     if (activeImage) {
       if (!displayedImage) {
-        // Immediate load on initial open for instant responsiveness
+        // Initial open: sync displayedImage with activeImage immediately
         setDisplayedImage(activeImage);
         setFadeClass("opacity-100 scale-100 blur-0");
       } else if (displayedImage.url !== activeImage.url) {
@@ -110,8 +105,8 @@ export const PreviewModal = ({
         }, CAROUSEL_TRANSITION_MS);
         return () => clearTimeout(timer);
       }
-    } else {
-      // Smooth fade-out on close
+    } else if (displayedImage) {
+      // Smooth fade-out on close (only if there is something currently displayed to fade out)
       setFadeClass("opacity-0 scale-[0.96] blur-[2px]");
       const timer = setTimeout(() => {
         setDisplayedImage(null);
@@ -134,12 +129,6 @@ export const PreviewModal = ({
         });
       }
     }
-  }, [activeIndex]);
-
-  // Reset orientation on image index change
-  // biome-ignore lint/correctness/useExhaustiveDependencies: activeIndex is a valid prop dependency that resets the image orientation
-  useEffect(() => {
-    setOrientation(null);
   }, [activeIndex]);
 
   // Keyboard navigation
@@ -166,26 +155,65 @@ export const PreviewModal = ({
     };
   }, [isOpen, activeIndex, images, onChangeIndex]);
 
-  // If there is no displayed image, render nothing
-  if (!displayedImage) {
+  const targetImage = displayedImage || activeImage;
+
+  // If there is no target image, render nothing
+  if (!targetImage) {
     return null;
   }
 
-  const caption = displayedImage.description || "No description available yet.";
-  const exif = displayedImage.exif;
-
-  // Filter out raw filenames so they aren't displayed as the main title
-  const isFilename = (str: string) => FILENAME_REGEX.test(str);
-  const showCaption =
-    caption &&
-    caption !== "No description available yet." &&
-    !isFilename(caption);
+  const caption = targetImage.description || "No description available yet.";
+  const exif = targetImage.exif;
 
   const exifItems = getExifItems(exif);
 
   // Large premium edge-to-edge immersive full-screen popup sizing
   const dialogClassName =
     "fixed inset-0 z-50 w-screen h-screen !max-w-none !max-h-none border-none bg-black/85 p-0 shadow-none backdrop-blur-3xl transition-all duration-300 rounded-none overflow-hidden m-0 !left-0 !top-0 !translate-x-0 !translate-y-0 flex flex-col";
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!targetImage || isDeleting) {
+      return;
+    }
+
+    // biome-ignore lint/suspicious/noAlert: Obtrusive prompt is intended here for simple secure admin confirmation
+    const adminPassword = prompt(
+      "请输入管理员密码以删除此图片 (Enter admin password to delete):"
+    );
+    if (adminPassword === null) {
+      return;
+    }
+
+    if (!adminPassword.trim()) {
+      toast.error("密码不能为空");
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      toast.loading("正在删除图片...", { id: "delete-image" });
+
+      const res = await deleteImage(
+        targetImage.pathname,
+        targetImage.url,
+        adminPassword
+      );
+
+      if (res.error) {
+        toast.error(`删除失败: ${res.error}`, { id: "delete-image" });
+      } else {
+        toast.success("图片已成功删除", { id: "delete-image" });
+        onClose();
+        window.location.reload();
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "未知错误";
+      toast.error(`删除出错: ${message}`, { id: "delete-image" });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handlePrev = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -215,10 +243,10 @@ export const PreviewModal = ({
           <img
             alt=""
             className={cn(
-              "h-full w-full scale-125 object-cover opacity-40 blur-[100px] brightness-[0.5] transition-all duration-500",
+              "h-full w-full scale-125 transform-gpu object-cover opacity-40 blur-2xl brightness-[0.5] transition-all duration-500 will-change-[filter,transform]",
               fadeClass
             )}
-            src={displayedImage.url}
+            src={targetImage.url}
           />
           <div className="absolute inset-0 bg-black/45" />
         </div>
@@ -237,10 +265,18 @@ export const PreviewModal = ({
 
           {/* Right Action buttons */}
           <div className="absolute top-6 right-6 z-50 flex items-center gap-3">
+            <button
+              aria-label="Delete image"
+              className="flex size-11 cursor-pointer items-center justify-center rounded-full border border-red-500/10 bg-red-950/40 text-red-200 backdrop-blur-md transition-all hover:scale-105 hover:bg-red-800/80 hover:text-white"
+              onClick={handleDelete}
+              type="button"
+            >
+              <Trash2Icon className="size-4.5" />
+            </button>
             <a
               aria-label="View original image"
               className="flex size-11 cursor-pointer items-center justify-center rounded-full border border-white/5 bg-black/40 text-white/90 backdrop-blur-md transition-all hover:scale-105 hover:bg-black/60 hover:text-white"
-              href={displayedImage.url}
+              href={targetImage.url}
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -250,7 +286,7 @@ export const PreviewModal = ({
               aria-label="Download image"
               className="flex size-11 cursor-pointer items-center justify-center rounded-full border border-white/5 bg-black/40 text-white/90 backdrop-blur-md transition-all hover:scale-105 hover:bg-black/60 hover:text-white"
               download={caption || "download"}
-              href={displayedImage.url}
+              href={targetImage.url}
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -258,9 +294,7 @@ export const PreviewModal = ({
             </a>
           </div>
 
-          {/* Main Viewport */}
           <div className="group/container relative flex min-h-0 flex-1 items-center justify-center p-4">
-            {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions: onLoad is used to capture aspect ratio dynamically */}
             {/* biome-ignore lint/performance/noImgElement: Preview gallery lightbox uses raw img */}
             {/* biome-ignore lint/nursery/useImageSize: Raw aspect ratios computed dynamically */}
             <img
@@ -269,15 +303,7 @@ export const PreviewModal = ({
                 "max-h-[72vh] max-w-[92vw] transform rounded-lg object-contain shadow-2xl transition-all duration-300 ease-out",
                 fadeClass
               )}
-              onLoad={(e) => {
-                const img = e.currentTarget;
-                if (img.naturalHeight > img.naturalWidth) {
-                  setOrientation("portrait");
-                } else {
-                  setOrientation("landscape");
-                }
-              }}
-              src={displayedImage.url}
+              src={targetImage.url}
             />
 
             {/* Navigation buttons overlay */}
@@ -304,16 +330,6 @@ export const PreviewModal = ({
 
             {/* Caption & EXIF info floating overlay */}
             <div className="-translate-x-1/2 pointer-events-none absolute bottom-6 left-1/2 z-10 flex w-full max-w-2xl select-none flex-col items-center gap-2.5 px-6 text-center">
-              {showCaption && (
-                <DialogDescription
-                  className={cn(
-                    "pointer-events-auto max-w-xl text-center font-medium text-sm text-white/95 drop-shadow-sm transition-all duration-300 ease-out",
-                    fadeClass
-                  )}
-                >
-                  {caption}
-                </DialogDescription>
-              )}
               {exifItems.length > 0 && (
                 <div
                   className={cn(
