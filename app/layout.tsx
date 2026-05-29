@@ -22,8 +22,8 @@ const mono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Vectr AI Search",
-  description: "Vectr AI Search - natural language image search",
+  title: "vectr.store",
+  description: "A free, open-source template for building natural language image search on the AI Cloud.",
 };
 
 type RootLayoutProps = {

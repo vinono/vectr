@@ -6,8 +6,8 @@ import { Results } from "@/components/results";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Vectr AI Search",
-  description: "Vectr AI Search",
+  title: "vectr.store",
+  description: "vectr.store",
 };
 
 const ImagesSkeleton = () => (
