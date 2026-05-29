@@ -10,6 +10,7 @@ type PreviewProps = {
 
 export const Preview = memo(
   ({ url, description, priority, onClick }: PreviewProps) => {
+    if (!url) return null;
     const caption = description || "No description available yet.";
 
     return (

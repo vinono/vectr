@@ -51,7 +51,15 @@ export const search = async (
     const data = results
       .filter((result) => result.score >= RELEVANCE_THRESHOLD)
       .sort((a, b) => b.score - a.score)
-      .map((result) => result.metadata)
+      .map((result) => {
+        if (result.metadata) {
+          return {
+            ...(result.metadata as any),
+            id: result.id,
+          };
+        }
+        return null;
+      })
       .filter(Boolean) as unknown as PutBlobResult[];
 
     console.log("Relevant images found:", data);

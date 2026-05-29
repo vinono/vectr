@@ -9,7 +9,6 @@ import {
   Loader2Icon,
   UploadIcon,
 } from "lucide-react";
-import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { search } from "@/app/actions/search";
@@ -201,20 +200,9 @@ export const ResultsClient = ({ defaultData }: ResultsClientProps) => {
           placeholder="Search by description"
           required
         />
-        {isPending ? (
+        {isPending && (
           <Button className="shrink-0" disabled size="icon" variant="ghost">
             <Loader2Icon className="size-4 animate-spin" />
-          </Button>
-        ) : (
-          <Button
-            asChild
-            className="shrink-0 cursor-pointer rounded-full hover:bg-muted"
-            size="icon"
-            variant="ghost"
-          >
-            <Link aria-label="Upload page" href="/upload">
-              <ImageUpIcon className="size-4" />
-            </Link>
           </Button>
         )}
       </form>

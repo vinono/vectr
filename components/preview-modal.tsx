@@ -11,12 +11,9 @@ import {
   FocusIcon,
   SlidersIcon,
   TimerIcon,
-  Trash2Icon,
   XIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
-import { deleteImage } from "@/app/actions/delete";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import type { ExifData } from "@/lib/exif";
 import { cn } from "@/lib/utils";
@@ -85,7 +82,6 @@ export const PreviewModal = ({
     null
   );
   const [fadeClass, setFadeClass] = useState("opacity-100 scale-100 blur-0");
-  const [isDeleting, setIsDeleting] = useState(false);
 
   const thumbnailContainerRef = useRef<HTMLDivElement>(null);
 
@@ -171,50 +167,6 @@ export const PreviewModal = ({
   const dialogClassName =
     "fixed inset-0 z-50 w-screen h-screen !max-w-none !max-h-none border-none bg-black/85 p-0 shadow-none backdrop-blur-3xl transition-all duration-300 rounded-none overflow-hidden m-0 !left-0 !top-0 !translate-x-0 !translate-y-0 flex flex-col";
 
-  const handleDelete = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!targetImage || isDeleting) {
-      return;
-    }
-
-    // biome-ignore lint/suspicious/noAlert: Obtrusive prompt is intended here for simple secure admin confirmation
-    const adminPassword = prompt(
-      "请输入管理员密码以删除此图片 (Enter admin password to delete):"
-    );
-    if (adminPassword === null) {
-      return;
-    }
-
-    if (!adminPassword.trim()) {
-      toast.error("密码不能为空");
-      return;
-    }
-
-    try {
-      setIsDeleting(true);
-      toast.loading("正在删除图片...", { id: "delete-image" });
-
-      const res = await deleteImage(
-        targetImage.pathname,
-        targetImage.url,
-        adminPassword
-      );
-
-      if (res.error) {
-        toast.error(`删除失败: ${res.error}`, { id: "delete-image" });
-      } else {
-        toast.success("图片已成功删除", { id: "delete-image" });
-        onClose();
-        window.location.reload();
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "未知错误";
-      toast.error(`删除出错: ${message}`, { id: "delete-image" });
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
   const handlePrev = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (activeIndex !== null) {
@@ -265,14 +217,6 @@ export const PreviewModal = ({
 
           {/* Right Action buttons */}
           <div className="absolute top-6 right-6 z-50 flex items-center gap-3">
-            <button
-              aria-label="Delete image"
-              className="flex size-11 cursor-pointer items-center justify-center rounded-full border border-red-500/10 bg-red-950/40 text-red-200 backdrop-blur-md transition-all hover:scale-105 hover:bg-red-800/80 hover:text-white"
-              onClick={handleDelete}
-              type="button"
-            >
-              <Trash2Icon className="size-4.5" />
-            </button>
             <a
               aria-label="View original image"
               className="flex size-11 cursor-pointer items-center justify-center rounded-full border border-white/5 bg-black/40 text-white/90 backdrop-blur-md transition-all hover:scale-105 hover:bg-black/60 hover:text-white"

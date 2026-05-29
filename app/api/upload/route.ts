@@ -8,22 +8,27 @@ export const POST = async (request: Request): Promise<NextResponse> => {
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
+    const adminUsername = formData.get("adminUsername");
     const adminPassword = formData.get("adminPassword");
     const exifValue = formData.get("exif");
 
     if (!process.env.ADMIN_PASSWORD) {
       return NextResponse.json(
-        { error: "Upload password is not configured" },
+        { error: "Upload credentials are not configured" },
         { status: 500 }
       );
     }
 
+    const expectedUsername = process.env.ADMIN_USERNAME || "admin";
+
     if (
+      typeof adminUsername !== "string" ||
+      adminUsername !== expectedUsername ||
       typeof adminPassword !== "string" ||
       adminPassword !== process.env.ADMIN_PASSWORD
     ) {
       return NextResponse.json(
-        { error: "Invalid upload password" },
+        { error: "身份验证失败 (Invalid username or password)" },
         { status: 401 }
       );
     }

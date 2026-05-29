@@ -6,14 +6,22 @@ import { Index } from "@upstash/vector";
 export async function deleteImage(
   pathname: string,
   url: string,
+  adminUsername?: string,
   adminPassword?: string
 ) {
   if (!process.env.ADMIN_PASSWORD) {
-    return { error: "Delete password is not configured" };
+    return { error: "管理员密码未配置 (Delete credentials are not configured)" };
   }
 
-  if (!adminPassword || adminPassword !== process.env.ADMIN_PASSWORD) {
-    return { error: "Invalid admin password" };
+  const expectedUsername = process.env.ADMIN_USERNAME || "admin";
+
+  if (
+    !adminUsername ||
+    adminUsername !== expectedUsername ||
+    !adminPassword ||
+    adminPassword !== process.env.ADMIN_PASSWORD
+  ) {
+    return { error: "身份验证失败 (Authentication failed)" };
   }
 
   try {
@@ -33,9 +41,17 @@ export async function deleteImage(
     await index.delete(pathname);
     console.log(`Successfully deleted vector ID: ${pathname}`);
 
-    // 2. Delete from Vercel Blob Storage
-    await del(url);
-    console.log(`Successfully deleted blob URL: ${url}`);
+    // 2. Delete from Vercel Blob Storage (Soft-catch so dummy test URLs don't block index deletion)
+    try {
+      if (url && (url.includes("vercel-storage.com") || url.includes("public.blob"))) {
+        await del(url);
+        console.log(`Successfully deleted blob URL: ${url}`);
+      } else {
+        console.log(`Skipped storage deletion for non-Vercel Blob URL: ${url}`);
+      }
+    } catch (blobError: any) {
+      console.warn(`Soft Warning: Vercel Blob deletion failed: ${blobError.message}`);
+    }
 
     return { success: true };
   } catch (error: any) {

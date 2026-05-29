@@ -36,7 +36,15 @@ export const Results = async () => {
 
     // Map each document to match results structure, preserving description and exif
     const defaultData = vectors
-      .map((doc) => doc.metadata)
+      .map((doc) => {
+        if (doc.metadata) {
+          return {
+            ...(doc.metadata as any),
+            id: doc.id,
+          };
+        }
+        return null;
+      })
       .filter(Boolean) as unknown as ListBlobResult["blobs"];
 
     return <ResultsClient defaultData={defaultData} />;

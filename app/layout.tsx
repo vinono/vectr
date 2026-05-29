@@ -22,8 +22,8 @@ const mono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "vectr",
-  description: "vectr.store - natural language image search",
+  title: "Vectr AI Search",
+  description: "Vectr AI Search - natural language image search",
 };
 
 type RootLayoutProps = {
