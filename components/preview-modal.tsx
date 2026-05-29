@@ -62,9 +62,6 @@ const getExifItems = (exif?: ExifData): ExifItemType[] => {
   if (exif.focalLength) {
     items.push({ type: "focal", value: exif.focalLength });
   }
-  if (exif.takenAt) {
-    items.push({ type: "taken", value: exif.takenAt });
-  }
   return items;
 };
 
@@ -84,6 +81,46 @@ export const PreviewModal = ({
   const [fadeClass, setFadeClass] = useState("opacity-100 scale-100 blur-0");
 
   const thumbnailContainerRef = useRef<HTMLDivElement>(null);
+
+  // Touch Swipe Gesture Handlers for Mobile Devices
+  const touchStartXRef = useRef<number | null>(null);
+  const touchEndXRef = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartXRef.current = e.touches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartXRef.current !== null) {
+      touchEndXRef.current = e.touches[0].clientX;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (touchStartXRef.current === null || touchEndXRef.current === null) {
+      return;
+    }
+    const deltaX = touchStartXRef.current - touchEndXRef.current;
+    const swipeThreshold = 55; // minimum pixels swiped to trigger next/prev
+    
+    if (deltaX > swipeThreshold) {
+      // Swipe Left -> Next Image
+      if (activeIndex !== null) {
+        const nextIndex = (activeIndex + 1) % images.length;
+        onChangeIndex(nextIndex);
+      }
+    } else if (deltaX < -swipeThreshold) {
+      // Swipe Right -> Previous Image
+      if (activeIndex !== null) {
+        const prevIndex = (activeIndex - 1 + images.length) % images.length;
+        onChangeIndex(prevIndex);
+      }
+    }
+
+    // Reset coordinates
+    touchStartXRef.current = null;
+    touchEndXRef.current = null;
+  };
 
   // Sync displayed image with fade transition effect
   useEffect(() => {
@@ -165,7 +202,7 @@ export const PreviewModal = ({
 
   // Large premium edge-to-edge immersive full-screen popup sizing
   const dialogClassName =
-    "fixed inset-0 z-50 w-screen h-screen !max-w-none !max-h-none border-none bg-black/85 p-0 shadow-none backdrop-blur-3xl transition-all duration-300 rounded-none overflow-hidden m-0 !left-0 !top-0 !translate-x-0 !translate-y-0 flex flex-col";
+    "fixed inset-0 z-50 w-screen h-screen !max-w-none !max-h-none border-none bg-black p-0 shadow-none transition-all duration-300 rounded-none overflow-hidden m-0 !left-0 !top-0 !translate-x-0 !translate-y-0 flex flex-col";
 
   const handlePrev = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -188,27 +225,12 @@ export const PreviewModal = ({
       <DialogContent className={dialogClassName} showCloseButton={false}>
         <DialogTitle className="sr-only">Image preview</DialogTitle>
 
-        {/* Dynamic Ambient Background Blur */}
-        <div className="-z-10 pointer-events-none absolute inset-0 select-none overflow-hidden">
-          {/* biome-ignore lint/performance/noImgElement: Ambient blur requires raw img element */}
-          {/* biome-ignore lint/nursery/useImageSize: Dynamic background sizing */}
-          <img
-            alt=""
-            className={cn(
-              "h-full w-full scale-125 transform-gpu object-cover opacity-40 blur-2xl brightness-[0.5] transition-all duration-500 will-change-[filter,transform]",
-              fadeClass
-            )}
-            src={targetImage.url}
-          />
-          <div className="absolute inset-0 bg-black/45" />
-        </div>
-
         <div className="relative flex h-full flex-col">
           {/* Floating Top controls bar (absolute) */}
           {/* Left Close */}
           <button
             aria-label="Close dialog"
-            className="absolute top-6 left-6 z-50 flex size-11 cursor-pointer items-center justify-center rounded-full border border-white/5 bg-black/40 text-white/90 backdrop-blur-md transition-all hover:scale-105 hover:bg-black/60 hover:text-white"
+            className="absolute top-4 left-4 md:top-6 md:left-6 z-50 flex size-10 md:size-11 cursor-pointer items-center justify-center rounded-full border border-white/5 bg-black/40 text-white/90 backdrop-blur-md transition-all hover:scale-105 hover:bg-black/60 hover:text-white"
             onClick={onClose}
             type="button"
           >
@@ -216,10 +238,10 @@ export const PreviewModal = ({
           </button>
 
           {/* Right Action buttons */}
-          <div className="absolute top-6 right-6 z-50 flex items-center gap-3">
+          <div className="absolute top-4 right-4 md:top-6 md:right-6 z-50 flex items-center gap-2 md:gap-3">
             <a
               aria-label="View original image"
-              className="flex size-11 cursor-pointer items-center justify-center rounded-full border border-white/5 bg-black/40 text-white/90 backdrop-blur-md transition-all hover:scale-105 hover:bg-black/60 hover:text-white"
+              className="flex size-10 md:size-11 cursor-pointer items-center justify-center rounded-full border border-white/5 bg-black/40 text-white/90 backdrop-blur-md transition-all hover:scale-105 hover:bg-black/60 hover:text-white"
               href={targetImage.url}
               rel="noopener noreferrer"
               target="_blank"
@@ -228,7 +250,7 @@ export const PreviewModal = ({
             </a>
             <a
               aria-label="Download image"
-              className="flex size-11 cursor-pointer items-center justify-center rounded-full border border-white/5 bg-black/40 text-white/90 backdrop-blur-md transition-all hover:scale-105 hover:bg-black/60 hover:text-white"
+              className="flex size-10 md:size-11 cursor-pointer items-center justify-center rounded-full border border-white/5 bg-black/40 text-white/90 backdrop-blur-md transition-all hover:scale-105 hover:bg-black/60 hover:text-white"
               download={caption || "download"}
               href={targetImage.url}
               rel="noopener noreferrer"
@@ -238,13 +260,18 @@ export const PreviewModal = ({
             </a>
           </div>
 
-          <div className="group/container relative flex min-h-0 flex-1 items-center justify-center p-4">
+          <div 
+            className="group/container relative flex min-h-0 flex-1 items-center justify-center p-4 select-none touch-pan-y"
+            onTouchEnd={handleTouchEnd}
+            onTouchMove={handleTouchMove}
+            onTouchStart={handleTouchStart}
+          >
             {/* biome-ignore lint/performance/noImgElement: Preview gallery lightbox uses raw img */}
             {/* biome-ignore lint/nursery/useImageSize: Raw aspect ratios computed dynamically */}
             <img
               alt={caption}
               className={cn(
-                "max-h-[72vh] max-w-[92vw] transform rounded-lg object-contain shadow-2xl transition-all duration-300 ease-out",
+                "max-h-[72vh] max-w-[92vw] transform rounded-lg object-contain shadow-2xl transition-all duration-300 ease-out pointer-events-none",
                 fadeClass
               )}
               src={targetImage.url}
@@ -255,7 +282,7 @@ export const PreviewModal = ({
               <>
                 <button
                   aria-label="Previous image"
-                  className="-translate-y-1/2 absolute top-1/2 left-8 flex size-12 cursor-pointer items-center justify-center rounded-full border border-white/5 bg-black/40 text-white opacity-85 shadow-lg backdrop-blur-md transition-all hover:scale-110 hover:bg-black/60 hover:opacity-100"
+                  className="-translate-y-1/2 absolute top-1/2 left-8 hidden md:flex size-12 cursor-pointer items-center justify-center rounded-full border border-white/5 bg-black/40 text-white opacity-85 shadow-lg backdrop-blur-md transition-all hover:scale-110 hover:bg-black/60 hover:opacity-100"
                   onClick={handlePrev}
                   type="button"
                 >
@@ -263,7 +290,7 @@ export const PreviewModal = ({
                 </button>
                 <button
                   aria-label="Next image"
-                  className="-translate-y-1/2 absolute top-1/2 right-8 flex size-12 cursor-pointer items-center justify-center rounded-full border border-white/5 bg-black/40 text-white opacity-85 shadow-lg backdrop-blur-md transition-all hover:scale-110 hover:bg-black/60 hover:opacity-100"
+                  className="-translate-y-1/2 absolute top-1/2 right-8 hidden md:flex size-12 cursor-pointer items-center justify-center rounded-full border border-white/5 bg-black/40 text-white opacity-85 shadow-lg backdrop-blur-md transition-all hover:scale-110 hover:bg-black/60 hover:opacity-100"
                   onClick={handleNext}
                   type="button"
                 >
